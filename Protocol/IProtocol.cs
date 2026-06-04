@@ -12,6 +12,12 @@ namespace HardwareKit.Protocol
     internal interface IProtocol
     {
         /// <summary>
+        /// 协议选项
+        /// </summary>
+
+        ProtocolOptions Options { get; set; }
+
+        /// <summary>
         /// 是否已连接
         /// </summary>
         bool IsConnected { get; set; }

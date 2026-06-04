@@ -2,21 +2,17 @@
 using HardwareKit.Help;
 using System;
 using System.Collections.Generic;
-using System.IO.Ports;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace HardwareKit.Protocol.SerialPort
+namespace HardwareKit.Protocol.Tcp
 {
-    internal sealed class SerialPortProtocol : IProtocol
+    internal sealed class TcpProtocol : IProtocol
     {
-        public SerialPortProtocol(IConfig config, ProtocolOptions options)
+        public TcpProtocol(IConfig config, ProtocolOptions options)
         {
             Options = options;
         }
-
-        private readonly System.IO.Ports.SerialPort serialPort;
-
         public bool IsConnected { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
         public ProtocolOptions Options { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
 
