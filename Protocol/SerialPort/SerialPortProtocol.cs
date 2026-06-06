@@ -1,6 +1,7 @@
 ﻿using HardwareKit.Config;
 using HardwareKit.Config.SerialPort;
 using HardwareKit.Help;
+using HardwareKit.Protocol.ParsePacket;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -19,10 +20,8 @@ namespace HardwareKit.Protocol.SerialPort
     {
         public SerialPortProtocol(IConfig config, ProtocolOptions options) : base(config, options)
         {
-            _serialPort = new System.IO.Ports.SerialPort();
-            _serialPort.DataReceived += OnDataReceived;
-            ResponseQueue = new BlockingCollection<byte>();
-            StopProcessDataToken = new CancellationTokenSource();
+            PortClient = new System.IO.Ports.SerialPort();
+            PortClient.DataReceived += OnDataReceived;
         }
 
         /// <summary>
@@ -38,28 +37,25 @@ namespace HardwareKit.Protocol.SerialPort
         /// <summary>
         /// 串口对象
         /// </summary>
-        private System.IO.Ports.SerialPort _serialPort { get; set; }
+        private System.IO.Ports.SerialPort PortClient { get; set; }
 
         /// <summary>
         /// 报文队列
         /// </summary>
-        private BlockingCollection<byte> ResponseQueue { get; set; }
+        private BlockingCollection<byte[]> ResponseQueue { get; set; }
 
 
-        public override bool IsConnected => _serialPort.IsOpen;
+        public override bool IsConnected => PortClient.IsOpen;
 
         private void OnDataReceived(object sender, SerialDataReceivedEventArgs e)
         {
-            if (_serialPort.BytesToRead > 0)
+            if (PortClient.BytesToRead > 0)
             {
-                byte[] buffer = new byte[_serialPort.BytesToRead];
-                _serialPort.Read(buffer, 0, buffer.Length);
+                byte[] buffer = new byte[PortClient.BytesToRead];
+                PortClient.Read(buffer, 0, buffer.Length);
 
                 //接收数据并入队
-                foreach (byte data in buffer)
-                {
-                    ResponseQueue.Add(data);
-                }
+                ResponseQueue.Add(buffer);
             }
         }
 
@@ -74,19 +70,19 @@ namespace HardwareKit.Protocol.SerialPort
                 var serialConfig = Config as SerialPortConfig;
                 if (serialConfig != null)
                 {
-                    _serialPort.BaudRate = serialConfig.BaudRate;
-                    _serialPort.DataBits = serialConfig.DataBits;
-                    _serialPort.Parity = serialConfig.Parity;
-                    _serialPort.StopBits = serialConfig.StopBits;
-                    _serialPort.PortName = serialConfig.PortName;
-                    _serialPort.ReadTimeout = serialConfig.ReadTimeout;
-                    _serialPort.WriteTimeout = serialConfig.WriteTimeout;
+                    PortClient.BaudRate = serialConfig.BaudRate;
+                    PortClient.DataBits = serialConfig.DataBits;
+                    PortClient.Parity = serialConfig.Parity;
+                    PortClient.StopBits = serialConfig.StopBits;
+                    PortClient.PortName = serialConfig.PortName;
+                    PortClient.ReadTimeout = serialConfig.ReadTimeout;
+                    PortClient.WriteTimeout = serialConfig.WriteTimeout;
                     try
                     {
                         //初始化参数
                         Init();
 
-                        _serialPort.Open();
+                        PortClient.Open();
 
                         //启动处理数据任务
                         if (ProcessDataTask == null)
@@ -114,7 +110,7 @@ namespace HardwareKit.Protocol.SerialPort
         {
             if (IsConnected)
             {
-                _serialPort.Close();
+                PortClient.Close();
 
                 //停止任务
                 StopProcessDataToken.Cancel();
@@ -145,7 +141,7 @@ namespace HardwareKit.Protocol.SerialPort
                     try
                     {
                         await SyncSem.WaitAsync();
-                        _serialPort.Write(buffer, 0, buffer.Length);
+                        PortClient.Write(buffer, 0, buffer.Length);
                         return new Result();
                     }
                     catch (Exception ex)
@@ -178,20 +174,26 @@ namespace HardwareKit.Protocol.SerialPort
                     {
                         await SyncSem.WaitAsync();
                         ByteResponseTcs = new TaskCompletionSource<byte[]>();
-                        _serialPort.Write(buffer, 0, buffer.Length);
+                        PortClient.Write(buffer, 0, buffer.Length);
 
                         //等待回复数据，直到超时
-                        var task = await Task.WhenAny(ByteResponseTcs.Task, Task.Delay(_serialPort.ReadTimeout));
+                        var task = await Task.WhenAny(ByteResponseTcs.Task, Task.Delay(PortClient.ReadTimeout));
                         if (task.Equals(ByteResponseTcs.Task))
                         {
-
-                            //收到回复
-                            return new Result<byte[]>(ByteResponseTcs.Task.Result);
+                            if (task.IsCompleted)
+                            {
+                                //收到回复
+                                return new Result<byte[]>(ByteResponseTcs.Task.Result);
+                            }
+                            else
+                            {
+                                return new Result<byte[]>(null, false, "解析报文出现异常") { Exception=task.Exception};
+                            }
                         }
                         else
                         {
                             //超时
-                             return new Result<byte[]>(null, false, $"等待回复超时,等待时间[{Config.ReadTimeout}]ms");
+                            return new Result<byte[]>(null, false, $"等待回复超时,等待时间[{Config.ReadTimeout}]ms");
                         }
                     }
                     catch (Exception ex)
@@ -224,26 +226,34 @@ namespace HardwareKit.Protocol.SerialPort
                     {
                         await SyncSem.WaitAsync();
                         ByteResponseTcs = new TaskCompletionSource<byte[]>();
-                        _serialPort.Write(buffer, 0, buffer.Length);
+                        PortClient.Write(buffer, 0, buffer.Length);
 
                         //等待回复数据，直到超时
-                        var task = await Task.WhenAny(ByteResponseTcs.Task, Task.Delay(_serialPort.ReadTimeout));
+                        var task = await Task.WhenAny(ByteResponseTcs.Task, Task.Delay(PortClient.ReadTimeout));
 
                         if (task.Equals(ByteResponseTcs.Task))
                         {
-                            //收到回复
-                            byte[] response = ByteResponseTcs.Task.Result;
+                            if (task.IsCompleted)
+                            {
+                                //收到回复
+                                byte[] response = ByteResponseTcs.Task.Result;
 
-                            //创建报文
-                            TResponse responseObj = (TResponse)Activator.CreateInstance(typeof(TResponse), new object[] { response });
+                                //创建报文
+                                TResponse responseObj = (TResponse)Activator.CreateInstance(typeof(TResponse), new object[] { response });
 
-                            //返回结果
-                            return new Result<TResponse>(responseObj);
+                                //返回结果
+                                return new Result<TResponse>(responseObj);
+                            }
+                            else
+                            {
+                                //返回结果
+                                return new Result<TResponse>(null, false, "解析报文出现异常") { Exception = task.Exception };
+                            }
                         }
                         else
                         {
                             //超时
-                            return new Result<TResponse>(null, false, $"等待回复超时,等待时间[{_serialPort.ReadTimeout}]ms");
+                            return new Result<TResponse>(null, false, $"等待回复超时,等待时间[{PortClient.ReadTimeout}]ms");
                         }
                     }
                     catch (Exception ex)
@@ -274,15 +284,34 @@ namespace HardwareKit.Protocol.SerialPort
             }
             else
             {
-                ProcessDataTask = new Task(() =>
+                ProcessDataTask = new Task(async () =>
                 {
-                    while (!StopProcessDataToken.IsCancellationRequested)
+                    try
                     {
-                        //1、通过分隔符进行解包
-
-                        //2、通过长度进行解包
-
-                        //3、直接返回
+                        while (!StopProcessDataToken.IsCancellationRequested)
+                        {
+                            if (ResponseQueue.TryTake(out byte[] response, Timeout.Infinite, StopProcessDataToken.Token))
+                            {
+                                var result = ParsePacket.UnPacket(response);
+                                if (result)
+                                {
+                                    ByteResponseTcs.SetResult(result.Data);
+                                }
+                                else
+                                {
+                                    await Task.Delay(1);
+                                }
+                            }
+                            else
+                            {
+                                await Task.Delay(5);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        //设置异常
+                        ByteResponseTcs.SetException(ex);
                     }
                 }, StopProcessDataToken.Token, TaskCreationOptions.LongRunning);
             }
@@ -291,14 +320,8 @@ namespace HardwareKit.Protocol.SerialPort
 
         private void Init()
         {
-            if (ResponseQueue == null)
-            {
-                ResponseQueue = new BlockingCollection<byte>();
-            }
-            if (StopProcessDataToken == null)
-            {
-                StopProcessDataToken = new CancellationTokenSource();
-            }
+            ResponseQueue = new BlockingCollection<byte[]>();
+            StopProcessDataToken = new CancellationTokenSource();
         }
 
         public override void Dispose()

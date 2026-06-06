@@ -5,8 +5,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="Config\Rs485\" />
-    <Folder Include="Protocol\Rs485\" />
+    <Folder Include="Config\Modbus\ModbusRtu\" />
+    <Folder Include="Config\Modbus\ModbusTcp\" />
+    <Folder Include="Protocol\Modbus\ModbusRtu\" />
+    <Folder Include="Protocol\Modbus\ModbusTcp\" />
+    <Folder Include="Log\" />
   </ItemGroup>
 
   <ItemGroup>
