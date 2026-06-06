@@ -16,6 +16,11 @@ namespace HardwareKit.Protocol
         public ParsePacketType PPType { get; set; } = ParsePacketType.None;
 
         /// <summary>
+        /// 通信类型
+        /// </summary>
+        public CommunicationType CommunicationType { get; set; } = CommunicationType.SerialPort;
+
+        /// <summary>
         /// 通信数据记录类型，默认为BufferLogType.Byte
         /// </summary>
         public BufferLogType LogType { get; set; } = BufferLogType.Byte;

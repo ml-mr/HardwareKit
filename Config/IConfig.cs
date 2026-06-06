@@ -12,12 +12,12 @@ namespace HardwareKit.Config
         /// <summary>
         /// 读取超时时间，单位毫秒
         /// </summary>
-        uint ReadTimeout { get; set; }
+        int ReadTimeout { get; set; }
 
         /// <summary>
         /// 写入超时时间，单位毫秒
         /// </summary>
-        uint WriteTimeout { get; set; }
+        int WriteTimeout { get; set; }
 
     }
 }

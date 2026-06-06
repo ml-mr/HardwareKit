@@ -7,28 +7,41 @@ using System.Threading.Tasks;
 
 namespace HardwareKit.Protocol.Tcp
 {
-    internal sealed class TcpProtocol : IProtocol
+    /// <summary>
+    /// TCP协议实现类
+    /// </summary>
+    internal sealed class TcpProtocol : ProtocolBase
     {
-        public TcpProtocol(IConfig config, ProtocolOptions options)
+        public TcpProtocol(IConfig config, ProtocolOptions options) : base(config, options)
         {
-            Options = options;
+            
         }
-        public bool IsConnected { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        public ProtocolOptions Options { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public override bool IsConnected { get => throw new NotImplementedException();  }
 
-        public Task<Result> ConnectAsync()
+        public override Task<Result> ConnectAsync()
         {
             throw new NotImplementedException();
         }
 
-        public Task<Result> DisconnectAsync()
+        public override Task<Result> DisconnectAsync()
         {
             throw new NotImplementedException();
         }
 
-        public Task<Result> SendAsync(byte[] buffer)
+        public override Task<Result> SendAsync(byte[] buffer)
         {
             throw new NotImplementedException();
         }
+
+        public override Task<Result<byte[]>> SendWaitReplyAsync(byte[] buffer)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override Task<Result<TResponse>> SendWaitReplyAsync<TResponse>(byte[] buffer)
+        {
+            throw new NotImplementedException();
+        }
+    
     }
 }

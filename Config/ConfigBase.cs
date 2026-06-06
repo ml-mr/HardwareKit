@@ -9,7 +9,7 @@ namespace HardwareKit.Config
     /// </summary>
     internal abstract class ConfigBase : IConfig
     {
-        public uint ReadTimeout { get; set; } = 2000;
-        public uint WriteTimeout { get; set; } = 2000;
+        public int ReadTimeout { get; set; } = 2000;
+        public int WriteTimeout { get; set; } = 2000;
     }
 }
